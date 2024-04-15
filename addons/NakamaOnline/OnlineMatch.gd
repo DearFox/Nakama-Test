@@ -41,6 +41,7 @@ enum MatchState {
 	PLAYING = 5,
 }
 var match_state: int = MatchState.LOBBY: set = _set_readonly_variable, get = get_match_state
+var _match_state: int = MatchState.LOBBY
 
 enum MatchMode {
 	NONE = 0,
@@ -183,7 +184,7 @@ func start_matchmaking(_nakama_socket: NakamaSocket, data: Dictionary = {}) -> v
 		else:
 			data['query'] = query
 	
-	match_state = MatchState.MATCHING
+	_match_state = MatchState.MATCHING
 	var result = await nakama_socket.add_matchmaker_async(data.get('query', '*'), data['min_count'], data['max_count'], data.get('string_properties', {}), data.get('numeric_properties', {}))
 	if result.is_exception():
 		leave()
@@ -192,8 +193,8 @@ func start_matchmaking(_nakama_socket: NakamaSocket, data: Dictionary = {}) -> v
 		_matchmaker_ticket = result.ticket
 
 func start_playing() -> void:
-	assert(match_state == MatchState.READY)
-	match_state = MatchState.PLAYING
+	assert(_match_state == MatchState.READY)
+	_match_state = MatchState.PLAYING
 
 func leave(close_socket: bool = false) -> void:
 	# Nakama disconnect.
@@ -213,7 +214,7 @@ func leave(close_socket: bool = false) -> void:
 	players = {}
 	_my_peer_id = 0
 	_next_peer_id = 1
-	match_state = MatchState.LOBBY
+	_match_state = MatchState.LOBBY
 	match_mode = MatchMode.NONE
 
 func get_nakama_socket() -> NakamaSocket:
@@ -234,7 +235,7 @@ func get_match_mode() -> int:
 	return match_mode
 
 func get_match_state() -> int:
-	return match_state
+	return _match_state
 
 func get_session_id(peer_id: int):
 	for session_id in players:
@@ -261,7 +262,11 @@ func custom_rpc(node: Node, method: String, args: Array = []) -> void:
 	custom_rpc_id(node, 0, method, args)
 
 func custom_rpc_id(node: Node, id: int, method: String, args: Array = []) -> void:
-	assert(match_state == MatchState.READY or match_state == MatchState.PLAYING)
+	print(_match_state)
+	print(MatchState)
+	print(MatchState.READY)
+	print(MatchState.PLAYING)
+	assert(_match_state == MatchState.READY or _match_state == MatchState.PLAYING)
 	assert(match_id != '')
 	assert(nakama_socket != null)
 	
@@ -306,11 +311,13 @@ func _on_nakama_match_created(data: NakamaRTAPI.Match) -> void:
 	emit_signal("player_status_changed", my_player, PlayerStatus.CONNECTED)
 
 func _check_enough_players() -> void:
+	print("_check_enough_players")
 	if players.size() >= min_players:
-		match_state = MatchState.READY;
+		_match_state = MatchState.READY;
+		print("_check_enough_players MatchState.READY")
 		emit_signal("match_ready", players)
 	else:
-		match_state = MatchState.WAITING_FOR_ENOUGH_PLAYERS
+		_match_state = MatchState.WAITING_FOR_ENOUGH_PLAYERS
 
 func _on_nakama_match_presence(data: NakamaRTAPI.MatchPresenceEvent) -> void:
 	for u in data.joins:
@@ -318,7 +325,7 @@ func _on_nakama_match_presence(data: NakamaRTAPI.MatchPresenceEvent) -> void:
 			continue
 		
 		if match_mode == MatchMode.CREATE:
-			if match_state == MatchState.PLAYING:
+			if _match_state == MatchState.PLAYING:
 				# Tell this player that we've already started
 				nakama_socket.send_match_state_async(match_id, MatchOpCode.JOIN_ERROR, JSON.stringify({
 					target = u['session_id'],
@@ -367,7 +374,7 @@ func _on_nakama_match_presence(data: NakamaRTAPI.MatchPresenceEvent) -> void:
 			if players.size() < min_players:
 				# If state was previously ready, but this brings us below the minimum players,
 				# then we aren't ready anymore.
-				if match_state == MatchState.READY || match_state == MatchState.PLAYING:
+				if _match_state == MatchState.READY || _match_state == MatchState.PLAYING:
 					emit_signal("match_not_ready")
 
 func _on_nakama_match_join(data: NakamaRTAPI.Match) -> void:
@@ -412,10 +419,11 @@ func _on_nakama_matchmaker_matched(data: NakamaRTAPI.MatchmakerMatched) -> void:
 
 func _on_nakama_match_state(data: NakamaRTAPI.MatchData):
 	var json_result = JSON.parse_string(data.data)
-	if json_result.error != OK:
+	if !json_result:
 		return
 		
-	var content = json_result.result
+	#var content = json_result.result
+	var content = json_result
 	if data.op_code == MatchOpCode.CUSTOM_RPC:
 		if content['peer_id'] == 0 or content['peer_id'] == _my_peer_id:
 			var node = get_node(content['node_path'])

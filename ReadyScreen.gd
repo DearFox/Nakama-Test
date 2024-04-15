@@ -1,6 +1,7 @@
 extends Control
 
 var USER_READY = preload("res://user_ready.tscn")
+signal playerReady()
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -30,4 +31,6 @@ func MatchNotReady ():
 	pass
 
 func _on_im_ready_pressed():
+	OnlineMatch._check_enough_players()
+	emit_signal("playerReady")
 	pass # Replace with function body.
