@@ -9,6 +9,8 @@ func _ready():
 
 func OnMatchFound(players):
 	print(players)
+	visible = false
+	$"../ReadyScreen".visible = true
 	pass
 
 

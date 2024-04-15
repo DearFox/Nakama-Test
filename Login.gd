@@ -1,7 +1,8 @@
 extends Control
 
 
-
+func _ready():
+	$"../ReadyScreen".visible = false
 
 func _on_register_pressed():
 	var username = $RichTextLabel/UsernameText.text.strip_edges()
