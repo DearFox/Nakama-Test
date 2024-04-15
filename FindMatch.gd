@@ -16,10 +16,9 @@ func _on_find_match_pressed():
 	$FindMatch.visible = false
 	$Label.visible = true
 	if not Online.is_nakama_socket_connected():
-		
 		Online.connect_nakama_socket()
 		print("connect_nakama_socket")
-		await Online
+		await Online.socket_connected
 		print("await Online.socket_connected")
 	print("looking for a Match...")
 	var data = {

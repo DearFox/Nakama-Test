@@ -8,14 +8,26 @@ var max_players := 4
 var client_version := 'dev'
 
 # Nakama variables:
-var nakama_socket: NakamaSocket: set = _set_readonly_variable, get = get_nakama_socket
 var _nakama_socket: NakamaSocket = null
-var my_session_id: String: set = _set_readonly_variable, get = get_my_session_id
-var match_id: String: set = _set_readonly_variable, get = get_match_id
-var matchmaker_ticket: String: set = _set_readonly_variable, get = get_matchmaker_ticket
+var nakama_socket: NakamaSocket:
+	get: return _nakama_socket
+	
+var _my_session_id: String = ''
+var my_session_id: String:
+	get: return _my_session_id
+	
+var _match_id: String = ''
+var match_id: String:
+	get: return _match_id
+	
+var _matchmaker_ticket: String = ''
+var matchmaker_ticket: String:
+	get: return _matchmaker_ticket
 
 # RPC variables:
-var my_peer_id: int: set = _set_readonly_variable
+var my_peer_id: int:
+	get: return _my_peer_id
+var _my_peer_id: int = 0
 
 var players: Dictionary
 var _next_peer_id: int
@@ -101,24 +113,24 @@ static func unserialize_players(_players: Dictionary) -> Dictionary:
 func _set_readonly_variable(_value) -> void:
 	pass
 
-func _set_nakama_socket(_nakama_socket: NakamaSocket) -> void:
-	if nakama_socket == _nakama_socket:
+func _set_nakama_socket(nakama_socket_: NakamaSocket) -> void:
+	if _nakama_socket == nakama_socket_:
 		return
 	
-	if nakama_socket:
-		nakama_socket.disconnect("closed", _on_nakama_closed)
-		nakama_socket.disconnect("received_error", _on_nakama_error)
-		nakama_socket.disconnect("received_match_state", _on_nakama_match_state)
-		nakama_socket.disconnect("received_match_presence", _on_nakama_match_presence)
-		nakama_socket.disconnect("received_matchmaker_matched", _on_nakama_matchmaker_matched)
+	if _nakama_socket:
+		_nakama_socket.disconnect("closed", _on_nakama_closed)
+		_nakama_socket.disconnect("received_error", _on_nakama_error)
+		_nakama_socket.disconnect("received_match_state", _on_nakama_match_state)
+		_nakama_socket.disconnect("received_match_presence", _on_nakama_match_presence)
+		_nakama_socket.disconnect("received_matchmaker_matched", _on_nakama_matchmaker_matched)
 	
-	nakama_socket = _nakama_socket
-	if nakama_socket:
-		nakama_socket.connect("closed", _on_nakama_closed)
-		nakama_socket.connect("received_error", _on_nakama_error)
-		nakama_socket.connect("received_match_state", _on_nakama_match_state)
-		nakama_socket.connect("received_match_presence", _on_nakama_match_presence)
-		nakama_socket.connect("received_matchmaker_matched", _on_nakama_matchmaker_matched)
+	_nakama_socket = nakama_socket_
+	if _nakama_socket:
+		_nakama_socket.connect("closed", _on_nakama_closed)
+		_nakama_socket.connect("received_error", _on_nakama_error)
+		_nakama_socket.connect("received_match_state", _on_nakama_match_state)
+		_nakama_socket.connect("received_match_presence", _on_nakama_match_presence)
+		_nakama_socket.connect("received_matchmaker_matched", _on_nakama_matchmaker_matched)
 
 func create_match(_nakama_socket: NakamaSocket) -> void:
 	leave()
@@ -177,7 +189,7 @@ func start_matchmaking(_nakama_socket: NakamaSocket, data: Dictionary = {}) -> v
 		leave()
 		emit_signal("error", "Unable to join match making pool")
 	else:
-		matchmaker_ticket = result.ticket
+		_matchmaker_ticket = result.ticket
 
 func start_playing() -> void:
 	assert(match_state == MatchState.READY)
@@ -195,22 +207,22 @@ func leave(close_socket: bool = false) -> void:
 			_set_nakama_socket(null)
 	
 	# Initialize all the variables to their default state.
-	my_session_id = ''
-	match_id = ''
-	matchmaker_ticket = ''
+	_my_session_id = ''
+	_match_id = ''
+	_matchmaker_ticket = ''
 	players = {}
-	my_peer_id = 0
+	_my_peer_id = 0
 	_next_peer_id = 1
 	match_state = MatchState.LOBBY
 	match_mode = MatchMode.NONE
 
 func get_nakama_socket() -> NakamaSocket:
-	if _nakama_socket == null:
-		_nakama_socket = Nakama.create_socket()
+	#if _nakama_socket == null:
+		#_nakama_socket = Nakama.create_socket()
 	return _nakama_socket
 
 func get_my_session_id() -> String:
-	return my_session_id
+	return _my_session_id
 
 func get_match_id() -> String:
 	return match_id
@@ -237,13 +249,13 @@ func get_player_names_by_peer_id() -> Dictionary:
 	return result
 
 func get_network_unique_id() -> int:
-	return my_peer_id
+	return _my_peer_id
 
 func is_network_server() -> bool:
-	return my_peer_id == 1
+	return _my_peer_id == 1
 
 func is_network_master_for_node(node: Node) -> bool:
-	return node.get_network_master() == my_peer_id
+	return node.get_network_master() == _my_peer_id
 
 func custom_rpc(node: Node, method: String, args: Array = []) -> void:
 	custom_rpc_id(node, 0, method, args)
@@ -266,7 +278,7 @@ func custom_rpc_sync(node: Node, method: String, args: Array = []) -> void:
 	custom_rpc(node, method, args)
 
 func custom_rpc_id_sync(node: Node, id: int, method: String, args: Array = []) -> void:
-	if my_peer_id == id:
+	if _my_peer_id == id:
 		node.callv(method, args)
 	else:
 		custom_rpc_id(node, id, method, args)
@@ -282,11 +294,11 @@ func _on_nakama_closed() -> void:
 	emit_signal("disconnected")
 
 func _on_nakama_match_created(data: NakamaRTAPI.Match) -> void:
-	match_id = data.match_id
-	my_session_id = data.self_user.session_id
+	_match_id = data.match_id
+	_my_session_id = data.self_user.session_id
 	var my_player = Player.from_presence(data.self_user, 1)
 	players[my_session_id] = my_player
-	my_peer_id = 1
+	_my_peer_id = 1
 	_next_peer_id = 2
 	
 	emit_signal("match_created", match_id)
@@ -359,8 +371,8 @@ func _on_nakama_match_presence(data: NakamaRTAPI.MatchPresenceEvent) -> void:
 					emit_signal("match_not_ready")
 
 func _on_nakama_match_join(data: NakamaRTAPI.Match) -> void:
-	match_id = data.match_id
-	my_session_id = data.self_user.session_id
+	_match_id = data.match_id
+	_my_session_id = data.self_user.session_id
 	
 	if match_mode == MatchMode.JOIN:
 		emit_signal("match_joined", match_id)
@@ -373,7 +385,7 @@ func _on_nakama_matchmaker_matched(data: NakamaRTAPI.MatchmakerMatched) -> void:
 		emit_signal("error", "Matchmaker error")
 		return
 	
-	my_session_id = data.self_user.presence.session_id
+	_my_session_id = data.self_user.presence.session_id
 	
 	# Use the list of users to assign peer ids.
 	for u in data.users:
@@ -384,7 +396,7 @@ func _on_nakama_matchmaker_matched(data: NakamaRTAPI.MatchmakerMatched) -> void:
 		players[session_id].peer_id = _next_peer_id
 		_next_peer_id += 1
 	
-	my_peer_id = players[my_session_id].peer_id
+	_my_peer_id = players[my_session_id].peer_id
 	
 	emit_signal("matchmaker_matched", players)
 	for session_id in players:
@@ -405,7 +417,7 @@ func _on_nakama_match_state(data: NakamaRTAPI.MatchData):
 		
 	var content = json_result.result
 	if data.op_code == MatchOpCode.CUSTOM_RPC:
-		if content['peer_id'] == 0 or content['peer_id'] == my_peer_id:
+		if content['peer_id'] == 0 or content['peer_id'] == _my_peer_id:
 			var node = get_node(content['node_path'])
 			if not node or not is_instance_valid(node) or node.is_queued_for_deletion():
 				push_warning("Custom RPC: Cannot find node at path: %s" % [content['node_path']])
@@ -424,7 +436,7 @@ func _on_nakama_match_state(data: NakamaRTAPI.MatchData):
 			return
 		
 		var content_players = unserialize_players(content['players'])
-		my_peer_id = content_players[my_session_id].peer_id
+		_my_peer_id = content_players[my_session_id].peer_id
 		for session_id in content_players:
 			if not players.has(session_id):
 				players[session_id] = content_players[session_id]

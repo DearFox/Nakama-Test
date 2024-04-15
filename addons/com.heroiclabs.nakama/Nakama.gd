@@ -52,6 +52,7 @@ func create_client(p_server_key : String,
 func create_socket(p_host : String = DEFAULT_HOST,
 		p_port : int = DEFAULT_PORT,
 		p_scheme : String = DEFAULT_SOCKET_SCHEME) -> NakamaSocket:
+	print('%s %s %s' % [p_host, p_port, p_scheme])
 	return NakamaSocket.new(create_socket_adapter(), p_host, p_port, p_scheme, true)
 
 func create_socket_from(p_client : NakamaClient) -> NakamaSocket:

@@ -10,11 +10,14 @@ var nakama_scheme: String = 'http'
 
 # For other scripts to access:
 #var nakama_client: NakamaClient setget _set_readonly_variable, get_nakama_client
-var nakama_client: NakamaClient: set = _set_readonly_variable, get = get_nakama_client
 var _nakama_client: NakamaClient = null
-var nakama_session: NakamaSession: set = set_nakama_session
-var nakama_socket: NakamaSocket: set = _set_readonly_variable, get = get_nakama_socket
+var nakama_client: NakamaClient: get = get_nakama_client
+	
+var _nakama_session: NakamaSession = null
+var nakama_session: NakamaSession: set = set_nakama_session, get = get_nakama_session
+	
 var _nakama_socket: NakamaSocket = null
+var nakama_socket: NakamaSocket: get = get_nakama_socket
 
 # Internal variable for initializing the socket.
 var _nakama_socket_connecting := false
@@ -33,8 +36,11 @@ func _ready() -> void:
 	pass
 
 func get_nakama_socket() -> NakamaSocket:
-	if _nakama_socket == null:
-		_nakama_socket = Nakama.create_socket()
+	#if _nakama_socket == null:
+		#print('nakama socket is null, creating one')
+		#connect_nakama_socket()
+		#await socket_connected
+		#print(_nakama_socket)
 	return _nakama_socket
 
 func get_nakama_client() -> NakamaClient:
@@ -49,13 +55,16 @@ func get_nakama_client() -> NakamaClient:
 	
 	return _nakama_client
 
-func set_nakama_session(_nakama_session: NakamaSession) -> void:
+func get_nakama_session() -> NakamaSession:
+	return _nakama_session
+
+func set_nakama_session(nakama_session_: NakamaSession) -> void:
 	# Close out the old socket.
-	if nakama_socket:
-		nakama_socket.close()
-		nakama_socket = null
+	if _nakama_socket:
+		_nakama_socket.close()
+		_nakama_socket = null
 	
-	nakama_session = _nakama_session
+	_nakama_session = nakama_session_
 	
 	emit_signal("session_changed", nakama_session)
 	
@@ -63,20 +72,21 @@ func set_nakama_session(_nakama_session: NakamaSession) -> void:
 		emit_signal("session_connected", nakama_session)
 
 func connect_nakama_socket() -> void:
-	if nakama_socket != null:
+	if _nakama_socket != null:
 		return
 	if _nakama_socket_connecting:
 		return
+	
 	_nakama_socket_connecting = true
 	
 	var new_socket = Nakama.create_socket_from(nakama_client)
 	#yield(new_socket.connect_async(nakama_session), "completed")
 	#await new_socket.connect_async(nakama_session)
-	await (await new_socket.connect_async(nakama_session)).completed
-	nakama_socket = new_socket
+	var _connection = await new_socket.connect_async(nakama_session)
+	_nakama_socket = new_socket
 	_nakama_socket_connecting = false
 	
 	emit_signal("socket_connected", nakama_socket)
 
 func is_nakama_socket_connected() -> bool:
-	return nakama_socket != null && nakama_socket.is_connected_to_host()
+	return _nakama_socket != null && _nakama_socket.is_connected_to_host()
